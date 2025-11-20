@@ -1,20 +1,43 @@
 {
-  "name": "DayFlow - Activity Tracker",
-  "short_name": "DayFlow",
-  "start_url": "./index.html",
-  "display": "standalone",
-  "background_color": "#121212",
-  "theme_color": "#6200ea",
-  "icons": [
-    {
-      "src": "https://via.placeholder.com/192x192.png?text=Icon",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "https://via.placeholder.com/512x512.png?text=Icon",
-      "sizes": "512x512",
-      "type": "image/png"
-    }
-  ]
+    "name": "DayFlow - Activity Tracker",
+    "short_name": "DayFlow",
+    "description": "Track your daily activities and achievements with ease",
+    "start_url": "./index.html",
+    "scope": "./",
+    "display": "standalone",
+    "orientation": "portrait-primary",
+    "background_color": "#0f0c29",
+    "theme_color": "#7b2cbf",
+    "categories": [ "productivity", "lifestyle" ],
+    "icons": [
+        {
+            "src": "./icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "./icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ],
+    "shortcuts": [
+        {
+            "name": "Log Activity",
+            "short_name": "Log",
+            "description": "Quickly log a new activity",
+            "url": "./index.html#log",
+            "icons": [
+                {
+                    "src": "./icon-192.png",
+                    "sizes": "192x192"
+                }
+            ]
+        }
+    ],
+    "screenshots": [ ],
+    "related_applications": [ ],
+    "prefer_related_applications": false
 }

@@ -1,6 +1,8 @@
 // --- State Management ---
 let activities = JSON.parse(localStorage.getItem('dayflow_activities')) || [];
 let currentAttachment = null; // { type: 'image' | 'link', data: string }
+let deferredPrompt = null; // For PWA install prompt
+let swRegistration = null; // Service worker registration
 
 // --- DOM Elements ---
 const activityText = document.getElementById('activity-text');
@@ -15,6 +17,7 @@ const linkInputContainer = document.getElementById('link-input-container');
 const linkInput = document.getElementById('link-input');
 const attachmentPreview = document.getElementById('attachment-preview');
 const clearAllBtn = document.getElementById('clear-all-btn');
+const installBtn = document.getElementById('install-btn');
 
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -28,12 +31,33 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.setAttribute('data-theme', savedTheme);
     }
 
-    // Register Service Worker
+    // Register Service Worker with better handling
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('./sw.js')
-            .then(reg => console.log('Service Worker Registered'))
+            .then(reg => {
+                console.log('Service Worker Registered');
+                swRegistration = reg;
+
+                // Check for updates every 30 minutes
+                setInterval(() => {
+                    reg.update();
+                }, 1800000);
+
+                // Request periodic sync for daily reminders (if supported)
+                if ('periodicSync' in reg) {
+                    reg.periodicSync.register('daily-reminder', {
+                        minInterval: 24 * 60 * 60 * 1000 // 24 hours
+                    }).catch(err => console.log('Periodic Sync not supported:', err));
+                }
+            })
             .catch(err => console.error('Service Worker Error', err));
     }
+
+    // Handle PWA install prompt
+    setupPWAInstall();
+
+    // Schedule daily notifications
+    scheduleDailyReminders();
 });
 
 // --- Event Listeners ---
@@ -47,20 +71,36 @@ themeToggle.addEventListener('click', () => {
 });
 
 // Notification Request
-notifyBtn.addEventListener('click', () => {
+notifyBtn.addEventListener('click', async () => {
     if (!('Notification' in window)) {
         alert('This browser does not support desktop notifications');
         return;
     }
-    Notification.requestPermission().then(permission => {
+
+    try {
+        const permission = await Notification.requestPermission();
         if (permission === 'granted') {
-            new Notification('DayFlow', {
-                body: 'Notifications enabled! We will remind you to log your day.',
-                icon: 'https://via.placeholder.com/192x192.png?text=Icon'
+            // Show welcome notification
+            new Notification('DayFlow Notifications Enabled! 🎉', {
+                body: 'You\'ll receive daily reminders to log your activities.',
+                icon: './icon-192.png',
+                badge: './icon-192.png',
+                vibrate: [200, 100, 200]
             });
+
             notifyBtn.style.display = 'none';
+
+            // Schedule daily reminders
+            scheduleDailyReminders();
+
+            // Subscribe to push notifications if available
+            if (swRegistration && swRegistration.pushManager) {
+                subscribeToPush();
+            }
         }
-    });
+    } catch (err) {
+        console.error('Notification permission error:', err);
+    }
 });
 
 // Image Upload
@@ -297,4 +337,207 @@ function linkify(text) {
     if (!text) return '';
     const urlRegex = /(https?:\/\/[^\s]+)/g;
     return text.replace(urlRegex, url => `<a href="${url}" target="_blank" style="color:var(--accent-color)">${url}</a>`);
+}
+
+// --- PWA Install Prompt ---
+function setupPWAInstall() {
+    // Capture the beforeinstallprompt event
+    window.addEventListener('beforeinstallprompt', (e) => {
+        // Prevent the default prompt
+        e.preventDefault();
+        // Store the event for later use
+        deferredPrompt = e;
+
+        // Show install button
+        console.log('PWA Install prompt available');
+        showInstallPromotion();
+    });
+
+    // Listen for the app installed event
+    window.addEventListener('appinstalled', () => {
+        console.log('PWA installed successfully!');
+        deferredPrompt = null;
+
+        // Hide install button
+        if (installBtn) {
+            installBtn.classList.add('hidden');
+        }
+
+        // Show a thank you notification
+        if (Notification.permission === 'granted') {
+            new Notification('Welcome to DayFlow! 🎉', {
+                body: 'App installed successfully! Start logging your activities.',
+                icon: './icon-192.png',
+                badge: './icon-192.png'
+            });
+        }
+    });
+}
+
+function showInstallPromotion() {
+    // Show the install button
+    if (installBtn) {
+        installBtn.classList.remove('hidden');
+        console.log('Install button shown');
+    }
+}
+
+async function installPWA() {
+    if (!deferredPrompt) {
+        console.log('No install prompt available');
+        return;
+    }
+
+    // Show the install prompt
+    deferredPrompt.prompt();
+
+    // Wait for the user's response
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log(`User response to install prompt: ${outcome}`);
+
+    // Hide the install button
+    if (installBtn && outcome === 'accepted') {
+        installBtn.classList.add('hidden');
+    }
+
+    // Clear the deferred prompt
+    deferredPrompt = null;
+}
+
+// Install button click handler
+if (installBtn) {
+    installBtn.addEventListener('click', installPWA);
+}
+
+// --- Push Notifications ---
+async function subscribeToPush() {
+    if (!swRegistration || !swRegistration.pushManager) {
+        console.log('Push notifications not supported');
+        return;
+    }
+
+    try {
+        // Check if already subscribed
+        let subscription = await swRegistration.pushManager.getSubscription();
+
+        if (!subscription) {
+            // Subscribe to push notifications
+            subscription = await swRegistration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(
+                    // This is a placeholder VAPID public key
+                    // In production, generate your own VAPID keys
+                    'BEl62iUYgUivxIkv69yViEuiBIa-Ib37J8brD2ZmFJ6z9Hqpg-aKW6w_6W6dDn8xZCR7-8LMGlJPYTiJJAk8dJo'
+                )
+            });
+
+            console.log('Push subscription successful:', subscription);
+
+            // Send subscription to your server (if you have one)
+            // await sendSubscriptionToServer(subscription);
+        }
+    } catch (err) {
+        console.error('Failed to subscribe to push notifications:', err);
+    }
+}
+
+function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding)
+        .replace(/\-/g, '+')
+        .replace(/_/g, '/');
+
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+
+    for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+}
+
+// --- Daily Notification Reminders ---
+function scheduleDailyReminders() {
+    // Check if notifications are enabled
+    if (Notification.permission !== 'granted') {
+        return;
+    }
+
+    // Clear existing reminders
+    const existingReminders = localStorage.getItem('dayflow_reminders');
+    if (existingReminders) {
+        const reminders = JSON.parse(existingReminders);
+        reminders.forEach(id => clearTimeout(id));
+    }
+
+    // Schedule reminders at specific times
+    const reminderTimes = [
+        { hour: 12, minute: 0, message: 'Lunchtime check-in! 🍽️ Log your morning activities.' },
+        { hour: 18, minute: 0, message: 'Evening reminder! 🌅 How was your day?' },
+        { hour: 21, minute: 0, message: 'End of day! 🌙 Don\'t forget to log your achievements.' }
+    ];
+
+    const scheduledIds = [];
+
+    reminderTimes.forEach(({ hour, minute, message }) => {
+        const timerId = scheduleNotificationAt(hour, minute, message);
+        if (timerId) {
+            scheduledIds.push(timerId);
+        }
+    });
+
+    // Save scheduled reminder IDs
+    localStorage.setItem('dayflow_reminders', JSON.stringify(scheduledIds));
+}
+
+function scheduleNotificationAt(hour, minute, message) {
+    const now = new Date();
+    const scheduledTime = new Date();
+    scheduledTime.setHours(hour, minute, 0, 0);
+
+    // If time has passed today, schedule for tomorrow
+    if (scheduledTime <= now) {
+        scheduledTime.setDate(scheduledTime.getDate() + 1);
+    }
+
+    const timeUntilNotification = scheduledTime - now;
+
+    // Schedule the notification
+    const timerId = setTimeout(() => {
+        showDailyReminder(message);
+        // Reschedule for next day
+        setTimeout(() => scheduleNotificationAt(hour, minute, message), 24 * 60 * 60 * 1000);
+    }, timeUntilNotification);
+
+    return timerId;
+}
+
+function showDailyReminder(message) {
+    if (Notification.permission === 'granted') {
+        new Notification('DayFlow Reminder', {
+            body: message,
+            icon: './icon-192.png',
+            badge: './icon-192.png',
+            vibrate: [200, 100, 200, 100, 200],
+            tag: 'daily-reminder',
+            requireInteraction: false,
+            actions: [
+                { action: 'open', title: 'Log Now' },
+                { action: 'dismiss', title: 'Later' }
+            ]
+        });
+    }
+}
+
+// Listen for notification clicks from service worker
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'NOTIFICATION_CLICKED') {
+            // Focus on the activity input
+            const activityTextInput = document.getElementById('activity-text');
+            if (activityTextInput) {
+                activityTextInput.focus();
+            }
+        }
+    });
 }

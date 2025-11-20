@@ -14,6 +14,7 @@ const linkBtn = document.getElementById('link-btn');
 const linkInputContainer = document.getElementById('link-input-container');
 const linkInput = document.getElementById('link-input');
 const attachmentPreview = document.getElementById('attachment-preview');
+const clearAllBtn = document.getElementById('clear-all-btn');
 
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -92,6 +93,9 @@ linkInput.addEventListener('change', () => {
 
 // Save Activity
 saveBtn.addEventListener('click', saveActivity);
+
+// Clear All Activities
+clearAllBtn.addEventListener('click', clearAllActivities);
 
 // --- Functions ---
 
@@ -185,6 +189,26 @@ function toggleFavorite(id) {
     }
 }
 
+function deleteActivity(id) {
+    if (confirm('Are you sure you want to delete this activity?')) {
+        activities = activities.filter(a => a.id !== id);
+        localStorage.setItem('dayflow_activities', JSON.stringify(activities));
+        renderActivities();
+
+        if (navigator.vibrate) navigator.vibrate(50);
+    }
+}
+
+function clearAllActivities() {
+    if (confirm('Are you sure you want to clear all activities? This cannot be undone!')) {
+        activities = [];
+        localStorage.setItem('dayflow_activities', JSON.stringify(activities));
+        renderActivities();
+
+        if (navigator.vibrate) navigator.vibrate(100);
+    }
+}
+
 function renderActivities() {
     activityList.innerHTML = '';
 
@@ -251,9 +275,14 @@ function renderActivities() {
         card.innerHTML = `
             <div class="card-header">
                 <span class="activity-time">${dateLabel} • ${time}</span>
-                <button class="favorite-btn ${favClass}" onclick="toggleFavorite(${activity.id})" aria-label="Toggle Favorite">
-                    <i class="${favIconClass} fa-star"></i>
-                </button>
+                <div class="activity-actions">
+                    <button class="favorite-btn ${favClass}" onclick="toggleFavorite(${activity.id})" aria-label="Toggle Favorite">
+                        <i class="${favIconClass} fa-star"></i>
+                    </button>
+                    <button class="delete-btn" onclick="deleteActivity(${activity.id})" aria-label="Delete Activity">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </div>
             </div>
             <div class="activity-content">${linkify(activity.text)}</div>
             ${mediaHtml}

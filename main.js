@@ -157,7 +157,8 @@ function saveActivity() {
         id: Date.now(),
         text: text,
         timestamp: new Date().toISOString(),
-        attachment: currentAttachment
+        attachment: currentAttachment,
+        isFavorite: false
     };
 
     activities.unshift(newActivity);
@@ -173,20 +174,41 @@ function saveActivity() {
     if (navigator.vibrate) navigator.vibrate(50);
 }
 
+function toggleFavorite(id) {
+    const activity = activities.find(a => a.id === id);
+    if (activity) {
+        activity.isFavorite = !activity.isFavorite;
+        localStorage.setItem('dayflow_activities', JSON.stringify(activities));
+        renderActivities();
+
+        if (navigator.vibrate) navigator.vibrate(20);
+    }
+}
+
 function renderActivities() {
     activityList.innerHTML = '';
 
-    // Filter: Show only Today and Yesterday
+    // Filter: Show only Today and Yesterday OR Favorites
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
 
-    const visibleActivities = activities.filter(activity => {
+    let visibleActivities = activities.filter(activity => {
         const activityDate = new Date(activity.timestamp);
-        // Compare timestamps to ensure we get everything from yesterday 00:00 onwards
-        return activityDate.getTime() >= yesterday.getTime();
+        // Show if it's a favorite OR if it's within the last 2 days
+        return activity.isFavorite || activityDate.getTime() >= yesterday.getTime();
+    });
+
+    // Sort: Favorites first, then by Date (newest first)
+    visibleActivities.sort((a, b) => {
+        if (a.isFavorite === b.isFavorite) {
+            // If both are favorites or both are not, sort by date (newest first)
+            return new Date(b.timestamp) - new Date(a.timestamp);
+        }
+        // If one is favorite and the other isn't, favorite comes first
+        return a.isFavorite ? -1 : 1;
     });
 
     if (visibleActivities.length === 0) {
@@ -223,8 +245,16 @@ function renderActivities() {
             }
         }
 
+        const favClass = activity.isFavorite ? 'active' : '';
+        const favIconClass = activity.isFavorite ? 'fa-solid' : 'fa-regular';
+
         card.innerHTML = `
-            <span class="activity-time">${dateLabel} • ${time}</span>
+            <div class="card-header">
+                <span class="activity-time">${dateLabel} • ${time}</span>
+                <button class="favorite-btn ${favClass}" onclick="toggleFavorite(${activity.id})" aria-label="Toggle Favorite">
+                    <i class="${favIconClass} fa-star"></i>
+                </button>
+            </div>
             <div class="activity-content">${linkify(activity.text)}</div>
             ${mediaHtml}
         `;

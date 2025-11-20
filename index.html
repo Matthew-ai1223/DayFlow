@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DayFlow | Activity Tracker</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#6200ea">
+
+    <!-- Fonts & Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <link rel="stylesheet" href="main.css">
+</head>
+
+<body>
+
+    <div class="app-container">
+        <!-- Header -->
+        <header>
+            <div class="logo">
+                <i class="fa-solid fa-bolt"></i> DayFlow
+            </div>
+            <div class="actions">
+                <button id="theme-toggle" class="icon-btn" aria-label="Toggle Theme">
+                    <i class="fa-solid fa-palette"></i>
+                </button>
+                <button id="notify-btn" class="icon-btn" aria-label="Enable Notifications">
+                    <i class="fa-regular fa-bell"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Input Section -->
+        <section class="input-card glass-panel">
+            <textarea id="activity-text" placeholder="What did you achieve today?" rows="3"></textarea>
+
+            <div class="attachment-preview" id="attachment-preview"></div>
+
+            <div class="input-actions">
+                <div class="tools">
+                    <label for="image-upload" class="tool-btn" title="Upload Image">
+                        <i class="fa-regular fa-image"></i>
+                        <input type="file" id="image-upload" accept="image/*" hidden>
+                    </label>
+                    <button id="link-btn" class="tool-btn" title="Add Link">
+                        <i class="fa-solid fa-link"></i>
+                    </button>
+                </div>
+                <button id="save-btn" class="primary-btn">
+                    Log Activity <i class="fa-solid fa-paper-plane"></i>
+                </button>
+            </div>
+
+            <!-- Hidden Link Input -->
+            <div id="link-input-container" class="hidden">
+                <input type="url" id="link-input" placeholder="https://example.com">
+            </div>
+        </section>
+
+        <!-- Timeline Section -->
+        <section class="timeline-container">
+            <div class="timeline-header">
+                <h2>Today's Timeline</h2>
+                <span id="date-display"></span>
+            </div>
+            <div id="activity-list" class="activity-list">
+                <!-- Activities will be injected here -->
+                <div class="empty-state">
+                    <i class="fa-solid fa-clipboard-list"></i>
+                    <p>No activities logged yet. Start your day!</p>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script src="main.js"></script>
+</body>
+
+</html>
